@@ -1,0 +1,68 @@
+name: Android CI
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_COMPILE_SDK: "35"
+      ANDROID_BUILD_TOOLS: "35.0.0"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Configure Android SDK environment
+        shell: bash
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_HOME=$RUNNER_TEMP/android-home" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+
+      - name: Install required Android SDK packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "build-tools;${ANDROID_BUILD_TOOLS}"
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # Run first for fast feedback on the pure-Kotlin core module,
+      # before the slower full Android build below.
+      - name: Run core unit tests
+        run: ./gradlew :core:test
+
+      # Builds and checks every module (core, android, demo). Gradle's
+      # up-to-date checking means the core tests above are not redone
+      # from scratch here.
+      - name: Build project
+        run: ./gradlew build
+
+      # Already produced by "build" above; kept as its own explicit step
+      # so the debug APK's origin is clear right before it is uploaded.
+      # Gradle reports this up-to-date rather than rebuilding it.
+      - name: Assemble demo debug APK
+        run: ./gradlew :demo:assembleDebug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: OpenCEF-Android-debug
+          path: demo/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

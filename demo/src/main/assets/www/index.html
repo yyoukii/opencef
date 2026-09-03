@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenCEF-Android Demo</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 24px;
+            background-color: #101418;
+            color: #f0f0f0;
+        }
+        input, button {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 16px;
+        }
+        button {
+            margin-top: 16px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 12px;
+            background-color: #1c2128;
+            border-radius: 6px;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenCEF-Android Demo</h1>
+
+    <input type="text" id="username" placeholder="Username" value="test" />
+    <input type="password" id="password" placeholder="Password" value="example" />
+    <button id="loginButton">Login</button>
+
+    <div id="status">Waiting for login...</div>
+
+    <button id="sendDemoMessage">Send Demo Message</button>
+    <button id="toggleListener">Unsubscribe from nativeMessage</button>
+    <div id="demoStatus">No message sent yet.</div>
+
+    <script>
+        window.demo = {
+            onNativeMessage: function (message) {
+                document.getElementById('status').textContent = message;
+            }
+        };
+
+        document.getElementById('loginButton').addEventListener('click', function () {
+            var payload = JSON.stringify({
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            });
+            window.cef.emit('login', payload);
+            document.getElementById('status').textContent = 'Sent login event, waiting for native...';
+        });
+
+        // window.cef.on/off only exist once the Milestone 3 runtime has been
+        // injected, which happens after the page finishes loading - so this
+        // registration waits for the window "load" event rather than
+        // running immediately at parse time.
+        window.addEventListener('load', function () {
+            var demoStatusEl = document.getElementById('demoStatus');
+            var subscribed = true;
+
+            var nativeMessageHandler = function (payload) {
+                var data = JSON.parse(payload);
+                demoStatusEl.textContent = 'Received: ' + data.text;
+            };
+            window.cef.on('nativeMessage', nativeMessageHandler);
+
+            document.getElementById('sendDemoMessage').addEventListener('click', function () {
+                window.cef.emit('demoMessage', JSON.stringify({ text: 'Hello from JavaScript' }));
+                demoStatusEl.textContent = 'Sent demoMessage, waiting for native...';
+            });
+
+            document.getElementById('toggleListener').addEventListener('click', function (event) {
+                if (subscribed) {
+                    window.cef.off('nativeMessage', nativeMessageHandler);
+                    event.target.textContent = 'Resubscribe to nativeMessage';
+                    demoStatusEl.textContent = 'Unsubscribed - further replies will not appear here.';
+                } else {
+                    window.cef.on('nativeMessage', nativeMessageHandler);
+                    event.target.textContent = 'Unsubscribe from nativeMessage';
+                }
+                subscribed = !subscribed;
+            });
+        });
+    </script>
+</body>
+</html>
