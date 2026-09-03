@@ -23,4 +23,5 @@ android {
 
 dependencies {
     api(project(":core"))
+    api("org.greenrobot:eventbus:3.3.1")
 }
