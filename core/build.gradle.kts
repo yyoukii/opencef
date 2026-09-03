@@ -8,5 +8,5 @@ kotlin {
 
 dependencies {
     testImplementation(libs.junit)
-    api(libs.eventbus)
+    api("org.greenrobot:eventbus:3.3.1")
 }
